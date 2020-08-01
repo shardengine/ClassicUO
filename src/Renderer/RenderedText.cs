@@ -48,9 +48,47 @@ namespace ClassicUO.Renderer
 
     internal sealed class RenderedText
     {
+        private sealed class TextCache
+        {
+            private Dictionary<int, FontTexture> _cache = new Dictionary<int, FontTexture>();
+
+            public void Add(RenderedText rt)
+            {
+                _cache[rt.GetHashCode()] = rt._texture;
+            }
+
+            public FontTexture Get(string text, byte font, ushort hue, FontStyle style, bool isunicode, byte cell,
+                TEXT_ALIGN_TYPE align)
+            {
+                if (text == null)
+                {
+                    text = string.Empty;
+                }
+
+                int hash = (text.GetHashCode() ^
+                            font ^
+                            hue ^
+                            style.GetHashCode() ^
+                            isunicode.GetHashCode() ^
+                            cell ^
+                            align.GetHashCode());
+
+                if (!_cache.TryGetValue(hash, out var rt))
+                {
+                    
+                }
+
+                return rt;
+            }
+        }
+
+
         private byte _font;
         private string _text;
         private FontTexture _texture;
+
+
+        private static TextCache _cache = new TextCache();
 
         private static readonly QueuedPool<RenderedText> _pool = new QueuedPool<RenderedText>(3000, r =>
         {
@@ -82,7 +120,7 @@ namespace ClassicUO.Renderer
 
             if (r.Text != text)
                 r.Text = text; // here makes the texture
-            else 
+            else
                 r.CreateTexture();
 
             return r;
@@ -427,25 +465,33 @@ namespace ClassicUO.Renderer
 
         public void CreateTexture()
         {
-            if (_texture != null && !_texture.IsDisposed)
+            _texture = _cache.Get(Text, Font, Hue, FontStyle, IsUnicode, Cell, Align);
+
+            bool add = _texture == null || _texture.IsDisposed;
+
+            if (add)
             {
-                _texture.Dispose();
-                _texture = null;
+                if (IsHTML)
+                    FontsLoader.Instance.SetUseHTML(true, HTMLColor, HasBackgroundColor);
+
+                FontsLoader.Instance.RecalculateWidthByInfo = RecalculateWidthByInfo;
+
+                bool ispartial = false;
+
+                if (IsUnicode)
+                    FontsLoader.Instance.GenerateUnicode(ref _texture, Font, Text, Hue, Cell, MaxWidth, Align, (ushort) FontStyle, SaveHitMap, MaxHeight);
+                else
+                    FontsLoader.Instance.GenerateASCII(ref _texture, Font, Text, Hue, MaxWidth, Align, (ushort) FontStyle, out ispartial, SaveHitMap, MaxHeight);
+
+                IsPartialHue = ispartial;
+
+                if (IsHTML)
+                    FontsLoader.Instance.SetUseHTML(false);
+                FontsLoader.Instance.RecalculateWidthByInfo = false;
+
+                _cache.Add(this);
             }
 
-            if (IsHTML)
-                FontsLoader.Instance.SetUseHTML(true, HTMLColor, HasBackgroundColor);
-
-            FontsLoader.Instance.RecalculateWidthByInfo = RecalculateWidthByInfo;
-
-            bool ispartial = false;
-
-            if (IsUnicode)
-                FontsLoader.Instance.GenerateUnicode(ref _texture, Font, Text, Hue, Cell, MaxWidth, Align, (ushort)FontStyle, SaveHitMap, MaxHeight);
-            else
-                FontsLoader.Instance.GenerateASCII(ref _texture, Font, Text, Hue, MaxWidth, Align, (ushort)FontStyle, out ispartial, SaveHitMap, MaxHeight);
-
-            IsPartialHue = ispartial;
 
             if (Texture != null)
             {
@@ -453,10 +499,17 @@ namespace ClassicUO.Renderer
                 Height = Texture.Height;
                 Links = Texture.Links;
             }
+        }
 
-            if (IsHTML)
-                FontsLoader.Instance.SetUseHTML(false);
-            FontsLoader.Instance.RecalculateWidthByInfo = false;
+        public override int GetHashCode()
+        {
+            return ((Text == null ? "".GetHashCode() : Text.GetHashCode()) ^
+                    Font ^
+                    Hue ^
+                    FontStyle.GetHashCode() ^
+                    IsUnicode.GetHashCode() ^
+                    Cell ^
+                    Align.GetHashCode());
         }
 
         public void Destroy()
@@ -466,8 +519,8 @@ namespace ClassicUO.Renderer
 
             IsDestroyed = true;
 
-            if (Texture != null && !Texture.IsDisposed)
-                Texture.Dispose();
+            //if (Texture != null && !Texture.IsDisposed)
+            //    Texture.Dispose();
 
             _pool.ReturnOne(this);
         }
