@@ -38,14 +38,13 @@ namespace ClassicUO.Game.UI.Controls
             {
                 DepthStencilState depthStencilState = new DepthStencilState
                 {
-                    DepthBufferEnable = false,
                     StencilEnable = true,
                     StencilFunction = CompareFunction.Always,
-                    ReferenceStencil = 1,
-                    StencilMask = 1,
-                    StencilFail = StencilOperation.Keep,
-                    StencilDepthBufferFail = StencilOperation.Keep,
-                    StencilPass = StencilOperation.Replace
+                    StencilPass = StencilOperation.Replace,
+                    DepthBufferFunction = CompareFunction.Always,
+                    ReferenceStencil = 0,
+                    DepthBufferEnable = true,
+                    DepthBufferWriteEnable = true
                 };
 
 
@@ -87,22 +86,13 @@ namespace ClassicUO.Game.UI.Controls
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            //batcher.SetBlendState(_checkerBlend.Value);
-            //batcher.SetStencil(_checkerStencil.Value);
-
-            //batcher.Draw2D(TransparentTexture, new Rectangle(position.X, position.Y, Width, Height), Vector3.Zero /*ShaderHueTranslator.GetHueVector(0, false, 0.5f, false)*/);
-
-            //batcher.SetBlendState(null);
-            //batcher.SetStencil(null);
-
-            //return true;
-
             ResetHueVector();
             _hueVector.Z = 0.5f;
-            //batcher.SetStencil(_checkerStencil.Value);
-            batcher.Draw2D(Texture2DCache.GetTexture(Color.Black), x, y, Width, Height, ref _hueVector);
 
-            //batcher.SetStencil(null);
+            batcher.SetStencil(_checkerStencil.Value);
+            batcher.Draw2D(Texture2DCache.GetTexture(Color.Black), x, y, Width, Height, ref _hueVector);
+            batcher.SetStencil(null);
+
             return true;
         }
     }

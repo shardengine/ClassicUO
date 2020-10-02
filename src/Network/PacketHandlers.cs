@@ -6169,51 +6169,41 @@ namespace ClassicUO.Network
 
             if (applyCheckerTrans)
             {
-                bool applyTrans(int ii, int current_page)
-                {
-                    bool transparent = false;
+                Rectangle master = Rectangle.Empty;
+                Rectangle child = Rectangle.Empty;
 
-                    for (; ii < gump.Children.Count; ii++)
-                    {
-                        Control child = gump.Children[ii];
-
-                        if (current_page == 0)
-                        {
-                            current_page = child.Page;
-                        }
-
-                        bool canDraw = /*current_page == 0 || child.Page == 0 ||*/
-                            current_page == child.Page;
-
-                        if (canDraw && child.IsVisible && child is CheckerTrans)
-                        {
-                            transparent = true;
-
-                            continue;
-                        }
-
-                        child.Alpha = transparent ? 0.5f : 0;
-                    }
-
-                    return transparent;
-                }
-
-
-                bool trans = applyTrans(0, 0);
-                float alpha = trans ? 0.5f : 0;
-
-                for (int i = 0; i < gump.Children.Count; i++)
+                for (int i = gump.Children.Count - 1; i >= 0; i--)
                 {
                     Control cc = gump.Children[i];
 
-                    if (cc is CheckerTrans)
+                    if (cc is CheckerTrans && cc.IsVisible)
                     {
-                        trans = applyTrans(i + 1, cc.Page);
-                        alpha = trans ? 0.5f : 0;
-                    }
-                    else
-                    {
-                        cc.Alpha = alpha;
+                        master.X = cc.ScreenCoordinateX;
+                        master.Y = cc.ScreenCoordinateY;
+                        master.Width = cc.Width;
+                        master.Height = cc.Height;
+
+                        for (int k = i - 1; k >= 0; k--)
+                        {
+                            if (gump.Children[k] is CheckerTrans)
+                            {
+                                i = k + 1;
+                                break;
+                            }
+
+                            if (gump.Children[k].IsVisible && gump.Children[k].Page == cc.Page)
+                            {
+                                child.X = gump.Children[k].ScreenCoordinateX;
+                                child.Y = gump.Children[k].ScreenCoordinateY;
+                                child.Width = gump.Children[k].Width;
+                                child.Height = gump.Children[k].Height;
+
+                                if (master.Contains(child))
+                                {
+                                    gump.Children[k].Alpha = 0.5f;
+                                }
+                            }
+                        }
                     }
                 }
             }
